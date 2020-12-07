@@ -29,6 +29,7 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.shared import OxmlElement, qn
 # Basic imports
+import re
 import sys
 import configparser
 import time
@@ -526,6 +527,9 @@ Make sure your URL and API key are correct. Check HTTP vs HTTPS!".format(CAM_ID)
                 opened_counter += 1
                 self.targets_opened.append(event.email)
             elif event.message == "Clicked Link":
+                if not event.email in self.targets_opened:
+                    opened_counter += 1
+                    self.targets_opened.append(event.email)
                 click_counter += 1
                 self.targets_clicked.append(event.email)
             elif event.message == "Submitted Data":
@@ -1063,7 +1067,7 @@ Make sure your URL and API key are correct. Check HTTP vs HTTPS!".format(CAM_ID)
         # Runs are basically "runs" of text and must be aligned like we want
         # them aligned in the report -- thus they are pushed left
         if self.cam_status == "Completed":
-            completed_status = "Completed:\t{} on {}".format(self.completed_date.split("T")[1].split(".")[0],
+            completed_status = "Completed at {} on {}".format(self.completed_date.split("T")[1].split(".")[0],
                                                              self.completed_date.split("T")[0])
         else:
             completed_status = "Still Active"
@@ -1163,7 +1167,7 @@ Individuals Who Submitted: {}
             email_cell.text = "{}".format(target['email'])
 
             temp_cell = table.cell(counter, 1)
-            if target['opened']:
+            if target['opened'] or target['clicked']:                           #Added the or condition because some users that clicked were not counted as opened
                 temp_cell.paragraphs[0].add_run(u'\u2713', "Cell Text Hit")
             else:
                 temp_cell.paragraphs[0].add_run(u'\u2718', "Cell Text Miss")
@@ -1393,8 +1397,11 @@ Individuals Who Submitted: {}
                         for key, value in data_payload.items():
                             # To get just submitted data, we drop the 'rid' key
                             if not key == "rid":
+                                password = str(value).strip("[").strip("]")
+                                censored = "\'" + ("*" * (len(password) - 2)) + "\'"
+                                show = password[:3] + censored[3:-2] + password[-2:]
                                 submitted_data += "{}:{}   ".format(
-                                    key, str(value).strip("[").strip("]"))
+                                    key, show)
                         data.text = "{}".format(submitted_data)
                         submitted_counter += 1
                 target_counter += 1
